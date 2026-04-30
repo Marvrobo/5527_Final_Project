@@ -1,3 +1,5 @@
+Before running the pipeline, please ensure that you have ROS jazzy and Gazebo installed.
+
 Use this command to change the camera view:
 
 ```gz service -s /gui/move_to/pose --reqtype gz.msgs.GUICamera --reptype gz.msgs.Boolean --timeout 2000 --req "pose: {position: {x: 0.0, y: 0.0, z: 15.0} orientation: {x: 0.0, y: 0.7071, z: 0.0, w: 0.7071}}"```

@@ -1,0 +1,48 @@
+# system setup
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+#  Mecanum Drive (vehicle_blue)
+- ros_topic_name: "/vehicle_blue/cmd_vel"
+  gz_topic_name: "/model/vehicle_blue/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# Vehicle Blue - GROUND TRUTH 
+- ros_topic_name: "/vehicle_blue/pose"       
+  gz_topic_name: "/model/vehicle_blue/pose" 
+  ros_type_name: "geometry_msgs/msg/PoseStamped" 
+  gz_type_name: "gz.msgs.Pose"
+  direction: GZ_TO_ROS
+
+
+- ros_topic_name: "/vehicle_blue/odometry"
+  gz_topic_name: "/model/vehicle_blue/odometry"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+
+# obstacle commands and pose
+- ros_topic_name: "/obstacle/cmd_vel"
+  gz_topic_name: "/model/movable_long_obstacle/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/obstacle/odometry"
+  gz_topic_name: "/model/movable_long_obstacle/odometry"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# object pose
+- ros_topic_name: "/box/pose"
+  gz_topic_name: "/model/movable_box_object/pose"
+  ros_type_name: "geometry_msgs/msg/PoseStamped"
+  gz_type_name: "gz.msgs.Pose"
+  direction: GZ_TO_ROS

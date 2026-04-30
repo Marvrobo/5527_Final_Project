@@ -1,0 +1,54 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+build/
+install/
+log/
+
+*.csv
+*.pth
+*.cpython
+.pyc
+
+# Bytecode / Caching
+__pycache__/
+*.pyc
+
+# IDE/Editor Files (Optional but Recommended)
+.vscode/
+.idea/
+
+# Dataset/Log Files (Crucial for Machine Learning/Robotics)
+episodes/
+checkpoints/
+*.log

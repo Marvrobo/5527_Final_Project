@@ -23,7 +23,7 @@ glone the repository.
 navigate to the top level of the workspace, then
 
 ```bash
-cd final_project_4551_ws
+cd final_project_5527_ws
 colcon build
 source /opt/ros/jazzy/setup.bash
 source install/setup.bash

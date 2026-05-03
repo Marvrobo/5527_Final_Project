@@ -9,13 +9,15 @@ import os
 
 from data_preprocess import VehicleStateDataset
 from model.conditional_unet1d import ConditionalUnet1D
+from model.interactive_gnn import InteractiveGNN
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 
-dataset_dir = "episodes"
+dataset_dir = "episodes_7Hz"
 checkpoint_dir = "checkpoints" 
 
+graph_feature_dim = 64
 obs_horizon = 2
 pred_horizon = 16
 action_horizon = 8
@@ -49,13 +51,17 @@ dataloader = DataLoader(
 obs_dim = len(dataset.obs_keys)          # 6 dims: obstacle xy, box xy, vehicle xy
 action_dim = len(dataset.action_keys)    # 2 dims: vx, vy
 
-print(f"Obs dim: {obs_dim}, Action dim: {action_dim}")
+global_cond_dim = obs_horizon * (obs_dim + graph_feature_dim)
+
+print(f"Obs dim: {obs_dim}, Action dim: {action_dim}, Global cond dim: {global_cond_dim}")
 
 
 noise_pred_net = ConditionalUnet1D(
     input_dim = action_dim,
-    global_cond_dim = obs_dim * obs_horizon,
+    global_cond_dim = global_cond_dim,
 ).to(device)
+
+gnn_encoder = InteractiveGNN(out_dim=graph_feature_dim).to(device)
 
 # Diffusion noise scheduler
 noise_scheduler = DDPMScheduler(
@@ -72,7 +78,7 @@ ema = EMAModel(
 )
 
 optimizer = torch.optim.AdamW(
-    noise_pred_net.parameters(),
+    list(noise_pred_net.parameters()) + list(gnn_encoder.parameters()),
     lr=learning_rate,
     weight_decay=1e-6
 )
@@ -93,8 +99,22 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
         naction = batch["action"].to(device)  # (B, pred_horizon, action_dim)
         B = nobs.shape[0]
 
-        # FiLM conditioning: flatten obs horizon
-        obs_cond = nobs[:, :obs_horizon, :].reshape(B, -1) # (B, obs_horizon * obs_dim)
+        # FiLM conditioning: flatten raw observations across obs_horizon.
+        obs_cond_raw = nobs[:, :obs_horizon, :].reshape(B, -1)  # (B, obs_horizon * obs_dim)
+
+        # Per-step directed graph encoding, then concatenate across all observation steps.
+        graph_features_list = []
+        for t in range(obs_horizon):
+            obs_seq_t = nobs[:, t:t+1, :]  # (B, 1, obs_dim)
+            node_features, edge_index, edge_attr, batch_vec = gnn_encoder.build_interaction_graph(
+                obs_seq_t, obs_horizon=1
+            )
+            graph_features_t = gnn_encoder(node_features, edge_index, edge_attr, batch_vec)  # (B, graph_feature_dim)
+            graph_features_list.append(graph_features_t)
+        graph_features = torch.cat(graph_features_list, dim=1)  # (B, obs_horizon * graph_feature_dim) 
+
+        # Final conditioning: [raw_obs_all_steps, gnn_embed_all_steps]
+        obs_cond = torch.cat([obs_cond_raw, graph_features], dim=1)  # (B, obs_horizon * (obs_dim + graph_feature_dim))
 
         # sample noise
         noise = torch.randn_like(naction, device=device)
@@ -138,12 +158,15 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
 
         torch.save({
             "model_state_dict": ema_net.state_dict(),
+            "gnn_state_dict": gnn_encoder.state_dict(),
             "stats": dataset.stats,
             "config": {
                 "obs_horizon": obs_horizon,
                 "pred_horizon": pred_horizon,
                 "action_horizon": action_horizon,
                 "obs_dim": obs_dim,
+                "graph_feature_dim": graph_feature_dim,
+                "global_cond_dim": global_cond_dim,
                 "action_dim": action_dim
             }
         }, save_path)

@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import EdgeConv, global_mean_pool
+from torch_geometric.nn import global_mean_pool
 
 from torch_geometric.nn import MessagePassing
-from torch_geometric.utils import add_self_loops
 
 
 class EdgeConvWithEdgeAttr(MessagePassing):
@@ -37,15 +36,15 @@ class MLP(nn.Module):
         return self.net(x)
     
 class InteractiveGNN(nn.Module):
-    def __init__(self, node_dim=TODO, edge_dim=TODO, hidden_dim=TODO, out_dim=TODO):
+    def __init__(self, node_dim=5, edge_dim=2, hidden_dim=32, out_dim=64):
         super().__init__()
-        self.edge_mlp1 = MLP(node_dim * 2 + edge_dim, [64], hidden_dim)
-        self.edge_mlp2 = MLP(hidden_dim * 2 + edge_dim, [64], hidden_dim)
+        self.edge_mlp1 = MLP(node_dim * 2 + edge_dim, [32], hidden_dim)
+        self.edge_mlp2 = MLP(hidden_dim * 2 + edge_dim, [32], hidden_dim)
 
         self.conv1 = EdgeConvWithEdgeAttr(self.edge_mlp1)
         self.conv2 = EdgeConvWithEdgeAttr(self.edge_mlp2)
 
-        self.readout = MLP(hidden_dim, [64], out_dim)
+        self.readout = MLP(hidden_dim, [32], out_dim)
 
     def forward(self, x, edge_index, edge_attr, batch):
         # print(f"InteractiveGNN input shapes: x={x.shape}, edge_index={edge_index.shape}, edge_attr={edge_attr.shape}, batch={batch.shape}")
@@ -63,8 +62,9 @@ class InteractiveGNN(nn.Module):
         """
         this function should provide the node features and edge features for the GNN based on the observation sequence.
         notice that each return values should prepare # obs_horizon, each return values per obs_horizon
+        but for now we just implement the "single" version, and in train we inference multiple times
         obs_seq: tensor of shape [B, obs_horizon, obs_dim]
-        node_features: [B, obs_horizon, node_dim]
+        node_features: [B * 3, node_dim]
         edge_index: [2, E]
         edge_attr: [E, edge_dim]
         """
@@ -108,8 +108,8 @@ class InteractiveGNN(nn.Module):
 
         # construct edge features
 
-        local_edges = [(0, 1), (0, 2)]  # vehicle -> box, obstacle
-        local_edges += [(1, 2)]  # box -> obstacle
+        local_edges = [(2, 1), (2, 0)]  # vehicle -> box, obstacle
+        local_edges += [(1, 0)]  # box -> obstacle
         local_edges += [(dst, src) for (src, dst) in local_edges]  # add reverse edges
 
         num_edges_per_graph = len(local_edges)

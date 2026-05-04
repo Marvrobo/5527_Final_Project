@@ -65,7 +65,7 @@ class DiffusionInferenceNode(Node):
         self.graph_feature_dim = self.config.get('graph_feature_dim', 0)
         self.global_cond_dim = self.config.get(
             'global_cond_dim',
-            self.config['obs_horizon'] * (self.config['obs_dim'] + self.graph_feature_dim)
+            self.config['obs_horizon'] * self.graph_feature_dim
         )
         
         self.get_logger().info(f"Loaded Config: {self.config}")
@@ -87,7 +87,7 @@ class DiffusionInferenceNode(Node):
             self.gnn_encoder.eval()
             self.get_logger().info(f"Loaded InteractiveGNN with graph_feature_dim={self.graph_feature_dim}")
         else:
-            self.get_logger().warn("GNN state not found in checkpoint. Falling back to raw-observation conditioning only.")
+            self.get_logger().warn("GNN state not found in checkpoint. Falling back to zero graph-conditioning.")
 
         # 2. Initialize DDIM Scheduler
         self.noise_scheduler = DDIMScheduler(
@@ -178,7 +178,6 @@ class DiffusionInferenceNode(Node):
         
         obs_tensor = torch.from_numpy(obs_seq).to(self.device, dtype=torch.float32)
         nobs = self.normalize_obs(obs_tensor)
-        obs_cond_raw = nobs.unsqueeze(0).flatten(start_dim=1)  # (1, obs_horizon * obs_dim)
 
         if self.gnn_encoder is not None:
             graph_features_list = []
@@ -191,9 +190,9 @@ class DiffusionInferenceNode(Node):
                 graph_features_list.append(graph_features_t)
 
             graph_features = torch.cat(graph_features_list, dim=1)  # (1, obs_horizon * graph_feature_dim)
-            obs_cond = torch.cat([obs_cond_raw, graph_features], dim=1)
+            obs_cond = graph_features
         else:
-            obs_cond = obs_cond_raw
+            obs_cond = torch.zeros((1, self.global_cond_dim), device=self.device, dtype=torch.float32)
 
         # 2. DDIM Reverse Process 
         with torch.no_grad():

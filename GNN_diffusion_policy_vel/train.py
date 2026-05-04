@@ -51,7 +51,7 @@ dataloader = DataLoader(
 obs_dim = len(dataset.obs_keys)          # 6 dims: obstacle xy, box xy, vehicle xy
 action_dim = len(dataset.action_keys)    # 2 dims: vx, vy
 
-global_cond_dim = obs_horizon * (obs_dim + graph_feature_dim)
+global_cond_dim = obs_horizon * graph_feature_dim
 
 print(f"Obs dim: {obs_dim}, Action dim: {action_dim}, Global cond dim: {global_cond_dim}")
 
@@ -101,9 +101,6 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
         naction = batch["action"].to(device)  # (B, pred_horizon, action_dim)
         B = nobs.shape[0]
 
-        # FiLM conditioning: flatten raw observations across obs_horizon.
-        obs_cond_raw = nobs[:, :obs_horizon, :].reshape(B, -1)  # (B, obs_horizon * obs_dim)
-
         # Per-step directed graph encoding, then concatenate across all observation steps.
         graph_features_list = []
         for t in range(obs_horizon):
@@ -115,8 +112,8 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
             graph_features_list.append(graph_features_t)
         graph_features = torch.cat(graph_features_list, dim=1)  # (B, obs_horizon * graph_feature_dim) 
 
-        # Final conditioning: [raw_obs_all_steps, gnn_embed_all_steps]
-        obs_cond = torch.cat([obs_cond_raw, graph_features], dim=1)  # (B, obs_horizon * (obs_dim + graph_feature_dim))
+        # Final conditioning uses graph embeddings only.
+        obs_cond = graph_features  # (B, obs_horizon * graph_feature_dim)
 
         # sample noise
         noise = torch.randn_like(naction, device=device)

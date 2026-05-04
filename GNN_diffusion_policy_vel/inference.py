@@ -23,7 +23,7 @@ class DiffusionInferenceNode(Node):
     def __init__(self):
         super().__init__('diffusion_inference_node')
 
-        self.ckpt_path = "checkpoints/ckpt_epoch_1901.pth" 
+        self.ckpt_path = "checkpoints/ckpt_epoch_2001.pth" 
         self.control_freq = 20 # Hz (Matches 1/dt of your training data)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         

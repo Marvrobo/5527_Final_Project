@@ -14,7 +14,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 
-dataset_dir = "episodes_7Hz"
+dataset_dir = "episodes_20Hz"
 checkpoint_dir = "checkpoints" 
 
 graph_feature_dim = 64
@@ -23,7 +23,7 @@ pred_horizon = 16
 action_horizon = 8
 
 batch_size = 64
-num_epochs = 801
+num_epochs = 2500
 learning_rate = 1e-4
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -150,7 +150,7 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
     avg_loss = np.mean(epoch_losses)
     print(f"Epoch {epoch+1}/{num_epochs} Loss = {avg_loss:.6f}")
 
-    if epoch % 50 == 0 and epoch >= 100:
+    if epoch % 100 == 0 and epoch >= 100:
 
         ema_net = noise_pred_net
         ema.copy_to(ema_net.parameters())

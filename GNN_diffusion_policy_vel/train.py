@@ -63,6 +63,8 @@ noise_pred_net = ConditionalUnet1D(
 
 gnn_encoder = InteractiveGNN(out_dim=graph_feature_dim).to(device)
 
+print(f"UNet params: {sum(p.numel() for p in noise_pred_net.parameters()):,} | GNN params: {sum(p.numel() for p in gnn_encoder.parameters()):,}")
+
 # Diffusion noise scheduler
 noise_scheduler = DDPMScheduler(
     num_train_timesteps=100,

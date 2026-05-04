@@ -14,6 +14,7 @@ from nav_msgs.msg import Odometry
 
 # Import your model architecture
 from model.conditional_unet1d import ConditionalUnet1D
+from model.interactive_gnn import InteractiveGNN
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 
 factor = 1
@@ -22,8 +23,8 @@ class DiffusionInferenceNode(Node):
     def __init__(self):
         super().__init__('diffusion_inference_node')
 
-        self.ckpt_path = "checkpoints/ckpt_epoch_401.pth" 
-        self.control_freq = 5 # Hz (Matches 1/dt of your training data)
+        self.ckpt_path = "checkpoints/ckpt_epoch_2001.pth" 
+        self.control_freq = 20 # Hz (Matches 1/dt of your training data)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         self.num_inference_steps = 16 
@@ -61,17 +62,32 @@ class DiffusionInferenceNode(Node):
         payload = torch.load(self.ckpt_path, map_location=self.device)
         self.config = payload['config']
         self.stats = payload['stats']
+        self.graph_feature_dim = self.config.get('graph_feature_dim', 0)
+        self.global_cond_dim = self.config.get(
+            'global_cond_dim',
+            self.config['obs_horizon'] * (self.config['obs_dim'] + self.graph_feature_dim)
+        )
         
         self.get_logger().info(f"Loaded Config: {self.config}")
 
         # 1. Initialize Model
         self.model = ConditionalUnet1D(
             input_dim=self.config['action_dim'],
-            global_cond_dim=self.config['obs_dim'] * self.config['obs_horizon']
+            global_cond_dim=self.global_cond_dim
         ).to(self.device)
         
         self.model.load_state_dict(payload['model_state_dict'])
         self.model.eval()
+
+        # 1b. Initialize optional Interactive GNN encoder used during conditioning.
+        self.gnn_encoder = None
+        if self.graph_feature_dim > 0 and 'gnn_state_dict' in payload:
+            self.gnn_encoder = InteractiveGNN(out_dim=self.graph_feature_dim).to(self.device)
+            self.gnn_encoder.load_state_dict(payload['gnn_state_dict'])
+            self.gnn_encoder.eval()
+            self.get_logger().info(f"Loaded InteractiveGNN with graph_feature_dim={self.graph_feature_dim}")
+        else:
+            self.get_logger().warn("GNN state not found in checkpoint. Falling back to raw-observation conditioning only.")
 
         # 2. Initialize DDIM Scheduler
         self.noise_scheduler = DDIMScheduler(
@@ -162,7 +178,22 @@ class DiffusionInferenceNode(Node):
         
         obs_tensor = torch.from_numpy(obs_seq).to(self.device, dtype=torch.float32)
         nobs = self.normalize_obs(obs_tensor)
-        obs_cond = nobs.unsqueeze(0).flatten(start_dim=1)
+        obs_cond_raw = nobs.unsqueeze(0).flatten(start_dim=1)  # (1, obs_horizon * obs_dim)
+
+        if self.gnn_encoder is not None:
+            graph_features_list = []
+            for t in range(self.config['obs_horizon']):
+                obs_seq_t = nobs[t:t+1, :].unsqueeze(0)  # (1, 1, obs_dim)
+                node_features, edge_index, edge_attr, batch_vec = self.gnn_encoder.build_interaction_graph(
+                    obs_seq_t, obs_horizon=1
+                )
+                graph_features_t = self.gnn_encoder(node_features, edge_index, edge_attr, batch_vec)  # (1, graph_feature_dim)
+                graph_features_list.append(graph_features_t)
+
+            graph_features = torch.cat(graph_features_list, dim=1)  # (1, obs_horizon * graph_feature_dim)
+            obs_cond = torch.cat([obs_cond_raw, graph_features], dim=1)
+        else:
+            obs_cond = obs_cond_raw
 
         # 2. DDIM Reverse Process 
         with torch.no_grad():

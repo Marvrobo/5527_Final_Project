@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import itertools
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -73,9 +74,9 @@ noise_scheduler = DDPMScheduler(
     prediction_type='epsilon'
 )
 
-# EMA model
+# EMA model (tracks both the UNet and the GNN encoder)
 ema = EMAModel(
-    parameters=noise_pred_net.parameters(),
+    parameters=itertools.chain(noise_pred_net.parameters(), gnn_encoder.parameters()),
     power=0.75
 )
 
@@ -142,7 +143,7 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
         optimizer.step()
         optimizer.zero_grad()
         lr_scheduler.step()
-        ema.step(noise_pred_net.parameters())
+        ema.step(itertools.chain(noise_pred_net.parameters(), gnn_encoder.parameters()))
 
         epoch_losses.append(loss.item())
 
@@ -151,12 +152,11 @@ for epoch in tqdm(range(num_epochs), desc="Epoch"):
 
     if epoch % 100 == 0 and epoch >= 100:
 
-        ema_net = noise_pred_net
-        ema.copy_to(ema_net.parameters())
+        ema.copy_to(itertools.chain(noise_pred_net.parameters(), gnn_encoder.parameters()))
         save_path = os.path.join(checkpoint_dir, f"ckpt_epoch_{epoch+1}.pth")
 
         torch.save({
-            "model_state_dict": ema_net.state_dict(),
+            "model_state_dict": noise_pred_net.state_dict(),
             "gnn_state_dict": gnn_encoder.state_dict(),
             "stats": dataset.stats,
             "config": {

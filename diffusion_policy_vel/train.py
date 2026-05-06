@@ -13,7 +13,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 
-dataset_dir = "episodes"
+dataset_dir = "episodes_20Hz"
 checkpoint_dir = "checkpoints" 
 
 obs_horizon = 2

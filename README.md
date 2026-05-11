@@ -1,5 +1,3 @@
-Before running the pipeline, please ensure that you have ROS jazzy and Gazebo installed.
-
 Use this command to change the camera view:
 
 ```gz service -s /gui/move_to/pose --reqtype gz.msgs.GUICamera --reptype gz.msgs.Boolean --timeout 2000 --req "pose: {position: {x: 0.0, y: 0.0, z: 15.0} orientation: {x: 0.0, y: 0.7071, z: 0.0, w: 0.7071}}"```
@@ -20,7 +18,7 @@ Assuming that you have already installed ROS2 jazzy and Gazebo,
 
 To run the simluation:
 
-glone the repository.
+clone the repository.
 
 navigate to the top level of the workspace, then
 
@@ -42,11 +40,13 @@ Diffusion Policy:
 
 Note. It is recommended that you first run the inference node, and then run the simulation. Each time you want to restart the experiment, please re-run the inference node at first, otherwise its predictions may still be the remaining action sequences of last time. 
 
-To run the diffsion policy model, you should create a folder `checkpoints` under `diffusion_policy_vel`, and correctly place the model weights (checkpoint) under the `checkpoints`, and then open a second terminal:
+To run the diffsion policy model, you should create a folder `checkpoints` under `GNN_diffusion_policy_vel`, and correctly place the model weights (checkpoint) under the `checkpoints`, and then open a second terminal:
 
 ```bash
-cd diffusion_policy_vel
+cd GNN_diffusion_policy_vel
 python3 inference.py
 ```
 
-Notice. We obtained our dataset in 5Hz, with 40 episodes or so. You are also welcomed to record your own dataset by going through the data collection pipeline and re-train the model. The quality of expert demonstrations does matter. 
+Notice. We obtained our dataset in 20Hz, with 50 episodes or so. You are also welcomed to record your own dataset by going through the data collection pipeline and re-train the model. The quality of expert demonstrations does matter. 
+
+One of the checkpoints for Graph feature concatenated with original observation (our method) is provided: https://drive.google.com/file/d/17yIItNZkzHHKuzbDiK34B5pYTXpX6dSD/view?usp=drive_link. If you have any further question, please send an Email to us and we will be happy to explain any detail of this project.
